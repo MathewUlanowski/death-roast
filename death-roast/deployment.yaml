@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: death-roast
+  namespace: zomboid
+  labels:
+    app: death-roast
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: death-roast
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: death-roast
+  namespace: zomboid
+  labels:
+    app: death-roast
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: death-roast
+  template:
+    metadata:
+      labels:
+        app: death-roast
+    spec:
+      containers:
+        - name: death-roast
+          image: ghcr.io/ulanowski-lab/death-roast:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          env:
+            - name: PZ_LOG_PATH
+              value: "/logs/2026-11-08_01-19_PerkLog.txt"
+            - name: ROAST_HOST
+              value: "0.0.0.0"
+            - name: ROAST_PORT
+              value: "8080"
+            - name: LOG_POLL_INTERVAL
+              value: "1.0"
+            - name: RUNPOD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: runpod-credentials
+                  key: api-key
+            - name: ROAST_ENDPOINT_ID
+              value: "putzee8yi83xh1"
+            - name: DEATH_ROAST_WEBHOOK_URL
+              value: "http://127.0.0.1:8000/api/automation/v1/events/46d09c5c-7d7d-585f-8c37-a6b45a3de738/pz-death"
+            - name: DEATH_ROAST_WEBHOOK_SECRET
+              value: "whsec_JQNUeiJ7dbCo7XTYn1cd0E2jmjbJ9KIUE1IgHds6AZI"
+          volumeMounts:
+            - name: pz-logs
+              mountPath: /logs
+              readOnly: true
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: pz-logs
+          persistentVolumeClaim:
+            claimName: zomboid-data
